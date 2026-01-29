@@ -15,10 +15,18 @@ export const ErrorNotification: React.FC<Props> = ({
   setStatusMessage,
 }) => {
   useEffect(() => {
-    window.setTimeout(() => {
+    if (!status) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
       setStatus(false);
       setStatusMessage('');
     }, 3000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [status, statusMessage]);
 
   return (
@@ -39,14 +47,7 @@ export const ErrorNotification: React.FC<Props> = ({
         }}
       />
       {/* show only one message at a time */}
-      {/* Unable to load todos
-      <br />
-      Title should not be empty
-      <br />
-      Unable to add a todo
-      <br />
-      Unable to delete a todo
-      <br />
+      {/* 
       Unable to update a todo */}
       {statusMessage}
     </div>

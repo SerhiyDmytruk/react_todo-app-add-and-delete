@@ -1,44 +1,47 @@
-import { useState } from 'react';
+import { forwardRef } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 import { Todo } from '../../types/Todo';
 
-export const USER_ID = import.meta.env.VITE_USER_ID;
-
 type Props = {
+  disable: boolean;
   newTodo: (todo: Todo) => void;
+  inputValue: string;
+  setInputValue: (value: string) => void;
 };
 
-export const NewTodo: React.FC<Props> = ({ newTodo }) => {
-  const [value, setValue] = useState('');
+export const NewTodo = forwardRef<HTMLInputElement, Props>(
+  ({ newTodo, disable, inputValue, setInputValue }, ref) => {
+    const inputHandler = (event: ChangeEvent<HTMLInputElement>) => {
+      setInputValue(event.target.value);
+    };
 
-  const inputHandler = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const normalizeValue = event.target.value.trim();
+    const formHandler = (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
 
-    setValue(normalizeValue);
-  };
+      newTodo({
+        id: Date.now(),
+        completed: false,
+        title: inputValue,
+        userId: 0,
+      });
+    };
 
-  const formHandler = (event: React.FormEvent) => {
-    event.preventDefault();
+    return (
+      <form onSubmit={formHandler}>
+        <input
+          ref={ref}
+          data-cy="NewTodoField"
+          type="text"
+          className="todoapp__new-todo"
+          placeholder="What needs to be done?"
+          value={inputValue}
+          onChange={inputHandler}
+          disabled={disable}
+          autoFocus
+        />
+      </form>
+    );
+  },
+);
 
-    newTodo({
-      id: 0,
-      completed: false,
-      title: value,
-      userId: USER_ID,
-    });
-
-    setValue('');
-  };
-
-  return (
-    <form onSubmit={formHandler}>
-      <input
-        data-cy="NewTodoField"
-        type="text"
-        className="todoapp__new-todo"
-        placeholder="What needs to be done?"
-        value={value}
-        onChange={inputHandler}
-      />
-    </form>
-  );
-};
+NewTodo.displayName = 'NewTodo';

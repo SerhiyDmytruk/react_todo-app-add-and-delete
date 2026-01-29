@@ -11,9 +11,13 @@ export const Footer: React.FC<Props> = ({ data, setFilter }) => {
     event.preventDefault();
   };
 
-  const counter = data.filter(todo => {
-    return todo.completed !== true;
-  });
+  const counter = data
+    .filter(todo => {
+      return todo.completed !== true;
+    })
+    .filter(todo => {
+      return !todo.hasOwnProperty('temp');
+    });
 
   return (
     <footer className="todoapp__footer" data-cy="Footer">

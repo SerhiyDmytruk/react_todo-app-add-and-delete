@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { UserWarning } from './UserWarning';
-import { getTodos, USER_ID } from './api/todos';
+import { getTodos, addTodo, USER_ID, deleteTodo } from './api/todos';
 import { ErrorNotification } from './components/ErrorNotification';
 import { TodoList } from './components/TodoList';
 import { NewTodo } from './components/NewTodo';
@@ -13,16 +13,31 @@ export const App: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [filter, setFilter] = useState('all');
 
-  const handleAddTodo = (todo: Todo) => {
-    setTodos(prevTodos => (prevTodos ? [...prevTodos, todo] : [todo]));
-  };
+  const [disable, setDisable] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+
+  const [pendingList, setPendingList] = useState<number[]>([]);
+
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  function inputFocus() {
+    inputRef.current?.focus();
+  }
+
+  useEffect(() => {
+    if (!disable) {
+      inputFocus();
+    }
+  }, [disable]);
 
   useEffect(() => {
     getTodos()
       .then(setTodos)
-      .catch(() => {
+      .catch(er => {
         setError(true);
         setErrorMessage('Unable to load todos');
+
+        throw er;
       });
   }, []);
 
@@ -36,12 +51,86 @@ export const App: React.FC = () => {
     }
   });
 
-  const handleToggle = (id: number) => {
+  const handleAddTodo = (todo: Todo) => {
+    const normalizedTitle = todo.title.trim();
+    const newTodoID = Date.now();
+
+    setError(false);
+    setErrorMessage('');
+
+    if (normalizedTitle === '') {
+      setError(true);
+      setErrorMessage('Title should not be empty');
+      inputFocus();
+
+      return;
+    }
+
+    const newTodo = {
+      id: newTodoID,
+      userId: USER_ID,
+      completed: todo.completed,
+      title: normalizedTitle,
+      temp: true,
+    };
+
+    setDisable(true);
+    setPendingList(prevList => [...prevList, newTodoID]);
+
+    setTodos(prevTodos => [...prevTodos, newTodo]);
+
+    addTodo(newTodo)
+      .then(() => {
+        setTodos(prevTodos => prevTodos.filter(item => item.id !== newTodoID));
+      })
+      .then(() => {
+        setTodos(prevTodos => (prevTodos ? [...prevTodos, todo] : [todo]));
+        setDisable(false);
+      })
+      .catch(er => {
+        setTodos(todos);
+        setError(true);
+        setDisable(false);
+        setErrorMessage('Unable to add a todo');
+
+        throw er;
+      })
+      .finally(() => {
+        setPendingList(prevList => prevList.filter(item => item !== newTodoID));
+        setInputValue('');
+      });
+  };
+
+  const handleUpdate = (todoId: number) => {
     setTodos((prevState: Todo[]) => {
       return prevState.map((todo: Todo) =>
-        todo.id === id ? { ...todo, completed: !todo.completed } : todo,
+        todo.id === todoId ? { ...todo, completed: !todo.completed } : todo,
       );
     });
+
+    setPendingList(prevList => prevList.filter(item => todoId !== item));
+  };
+
+  const handleDeleteTodo = (todoId: number) => {
+    setPendingList(prevList => [...prevList, todoId]);
+
+    deleteTodo(todoId)
+      .catch(er => {
+        setTodos(todos);
+        setError(true);
+        setDisable(false);
+        setErrorMessage('Unable to delete a todo');
+
+        throw er;
+      })
+      .then(() => {
+        setTodos(prevState => prevState.filter(todo => todo.id !== todoId));
+
+        setPendingList(prevList => prevList.filter(item => item !== todoId));
+      })
+      .finally(() => {
+        inputFocus();
+      });
   };
 
   if (!USER_ID) {
@@ -62,10 +151,21 @@ export const App: React.FC = () => {
             />
           )}
 
-          <NewTodo newTodo={handleAddTodo} />
+          <NewTodo
+            ref={inputRef}
+            newTodo={handleAddTodo}
+            disable={disable}
+            inputValue={inputValue}
+            setInputValue={setInputValue}
+          />
         </header>
 
-        <TodoList todos={filteredTodos} toggleStatus={handleToggle} />
+        <TodoList
+          todos={filteredTodos}
+          toggleStatus={handleUpdate}
+          deleteTodo={handleDeleteTodo}
+          pendingList={pendingList}
+        />
 
         {todos.length > 1 && <Footer data={todos} setFilter={setFilter} />}
       </div>

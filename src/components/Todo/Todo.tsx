@@ -3,14 +3,20 @@
 
 import classNames from 'classnames';
 import { Todo } from '../../types/Todo';
-import { deleteTodo } from '../../api/todos';
 
 type Props = {
   todo: Todo;
   toggleStatus: (value: number) => void;
+  deleteTodo: (value: number) => void;
+  pendingList: number[];
 };
 
-export const TodoItem: React.FC<Props> = ({ todo, toggleStatus }) => {
+export const TodoItem: React.FC<Props> = ({
+  todo,
+  toggleStatus,
+  deleteTodo,
+  pendingList,
+}) => {
   const { id, title, completed } = todo;
 
   const buttonHandler = (todoId: number) => {
@@ -22,6 +28,7 @@ export const TodoItem: React.FC<Props> = ({ todo, toggleStatus }) => {
       data-cy="Todo"
       className={classNames({
         todo: true,
+        'item-enter-done': true,
         completed: completed,
       })}
       data-id={id}
@@ -53,8 +60,13 @@ export const TodoItem: React.FC<Props> = ({ todo, toggleStatus }) => {
         ×
       </button>
 
-      {/* overlay will cover the todo while it is being deleted or updated */}
-      <div data-cy="TodoLoader" className="modal overlay">
+      <div
+        data-cy="TodoLoader"
+        className={classNames({
+          'modal overlay': true,
+          'is-active': pendingList.includes(id),
+        })}
+      >
         <div className="modal-background has-background-white-ter" />
         <div className="loader" />
       </div>
