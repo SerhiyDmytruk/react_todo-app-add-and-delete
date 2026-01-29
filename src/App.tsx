@@ -1,26 +1,81 @@
-/* eslint-disable max-len */
-/* eslint-disable jsx-a11y/control-has-associated-label */
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserWarning } from './UserWarning';
-
-const USER_ID = 0;
+import { getTodos, USER_ID } from './api/todos';
+import { ErrorNotification } from './components/ErrorNotification';
+import { TodoList } from './components/TodoList';
+import { NewTodo } from './components/NewTodo';
+import { Todo } from './types/Todo';
+import { Footer } from './components/Footer';
 
 export const App: React.FC = () => {
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [filter, setFilter] = useState('all');
+
+  const handleAddTodo = (todo: Todo) => {
+    setTodos(prevTodos => (prevTodos ? [...prevTodos, todo] : [todo]));
+  };
+
+  useEffect(() => {
+    getTodos()
+      .then(setTodos)
+      .catch(() => {
+        setError(true);
+        setErrorMessage('Unable to load todos');
+      });
+  }, []);
+
+  const filteredTodos = todos.filter(todo => {
+    if (filter === 'all') {
+      return todo;
+    } else if (filter === 'completed') {
+      return todo.completed === true;
+    } else if (filter === 'active') {
+      return todo.completed === false;
+    }
+  });
+
+  const handleToggle = (id: number) => {
+    setTodos((prevState: Todo[]) => {
+      return prevState.map((todo: Todo) =>
+        todo.id === id ? { ...todo, completed: !todo.completed } : todo,
+      );
+    });
+  };
+
   if (!USER_ID) {
     return <UserWarning />;
   }
 
   return (
-    <section className="section container">
-      <p className="title is-4">
-        Copy all you need from the prev task:
-        <br />
-        <a href="https://github.com/mate-academy/react_todo-app-loading-todos#react-todo-app-load-todos">
-          React Todo App - Load Todos
-        </a>
-      </p>
+    <div className="todoapp">
+      <h1 className="todoapp__title">todos</h1>
 
-      <p className="subtitle">Styles are already copied</p>
-    </section>
+      <div className="todoapp__content">
+        <header className="todoapp__header">
+          {todos && (
+            <button
+              type="button"
+              className="todoapp__toggle-all active"
+              data-cy="ToggleAllButton"
+            />
+          )}
+
+          <NewTodo newTodo={handleAddTodo} />
+        </header>
+
+        <TodoList todos={filteredTodos} toggleStatus={handleToggle} />
+
+        {todos.length > 1 && <Footer data={todos} setFilter={setFilter} />}
+      </div>
+
+      <ErrorNotification
+        status={error}
+        statusMessage={errorMessage}
+        setStatus={setError}
+        setStatusMessage={setErrorMessage}
+      />
+    </div>
   );
 };
