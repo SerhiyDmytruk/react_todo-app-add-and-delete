@@ -7,8 +7,10 @@ import { NewTodo } from './components/NewTodo';
 import { Todo } from './types/Todo';
 import { Footer } from './components/Footer';
 
+type TodoWithTemp = Todo & { temp?: boolean };
+
 export const App: React.FC = () => {
-  const [todos, setTodos] = useState<Todo[]>([]);
+  const [todos, setTodos] = useState<TodoWithTemp[]>([]);
   const [error, setError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [filter, setFilter] = useState('all');
@@ -51,9 +53,11 @@ export const App: React.FC = () => {
     }
   });
 
-  const handleAddTodo = (todo: Todo) => {
-    const normalizedTitle = todo.title.trim();
-    const newTodoID = Date.now();
+  const todosForFooter = todos.filter(todo => !todo.temp);
+
+  const handleAddTodo = (title: string) => {
+    const normalizedTitle = title.trim();
+    const tempId = Date.now();
 
     setError(false);
     setErrorMessage('');
@@ -66,38 +70,40 @@ export const App: React.FC = () => {
       return;
     }
 
-    const newTodo = {
-      id: newTodoID,
+    const tempTodo: TodoWithTemp = {
+      id: tempId,
       userId: USER_ID,
-      completed: todo.completed,
+      completed: false,
       title: normalizedTitle,
       temp: true,
     };
 
     setDisable(true);
-    setPendingList(prevList => [...prevList, newTodoID]);
+    setPendingList(prevList => [...prevList, tempId]);
 
-    setTodos(prevTodos => [...prevTodos, newTodo]);
+    setTodos(prevTodos => [...prevTodos, tempTodo]);
 
-    addTodo(newTodo)
-      .then(() => {
-        setTodos(prevTodos => prevTodos.filter(item => item.id !== newTodoID));
+    addTodo({
+      userId: USER_ID,
+      completed: false,
+      title: normalizedTitle,
+    })
+      .then(createdTodo => {
+        setTodos(prevTodos => {
+          const withoutTemp = prevTodos.filter(item => item.id !== tempId);
+
+          return [...withoutTemp, createdTodo];
+        });
+        setInputValue('');
       })
-      .then(() => {
-        setTodos(prevTodos => (prevTodos ? [...prevTodos, todo] : [todo]));
-        setDisable(false);
-      })
-      .catch(er => {
-        setTodos(todos);
+      .catch(() => {
+        setTodos(prevTodos => prevTodos.filter(item => item.id !== tempId));
         setError(true);
-        setDisable(false);
         setErrorMessage('Unable to add a todo');
-
-        throw er;
       })
       .finally(() => {
-        setPendingList(prevList => prevList.filter(item => item !== newTodoID));
-        setInputValue('');
+        setDisable(false);
+        setPendingList(prevList => prevList.filter(item => item !== tempId));
       });
   };
 
@@ -115,20 +121,15 @@ export const App: React.FC = () => {
     setPendingList(prevList => [...prevList, todoId]);
 
     deleteTodo(todoId)
-      .catch(er => {
-        setTodos(todos);
-        setError(true);
-        setDisable(false);
-        setErrorMessage('Unable to delete a todo');
-
-        throw er;
-      })
       .then(() => {
         setTodos(prevState => prevState.filter(todo => todo.id !== todoId));
-
-        setPendingList(prevList => prevList.filter(item => item !== todoId));
+      })
+      .catch(() => {
+        setError(true);
+        setErrorMessage('Unable to delete a todo');
       })
       .finally(() => {
+        setPendingList(prevList => prevList.filter(item => item !== todoId));
         inputFocus();
       });
   };
@@ -167,7 +168,23 @@ export const App: React.FC = () => {
           pendingList={pendingList}
         />
 
-        {todos.length > 1 && <Footer data={todos} setFilter={setFilter} />}
+        {todosForFooter.length > 0 && (
+          <Footer
+            data={todosForFooter}
+            setFilter={setFilter}
+            clearCompeleted={() => {
+              setTodos((prevState: Todo[]) =>
+                prevState.map(item => {
+                  if (item.completed === true) {
+                    handleDeleteTodo(item.id);
+                  }
+
+                  return item;
+                }),
+              );
+            }}
+          />
+        )}
       </div>
 
       <ErrorNotification

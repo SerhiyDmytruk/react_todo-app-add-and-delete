@@ -1,10 +1,9 @@
 import { forwardRef } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
-import { Todo } from '../../types/Todo';
 
 type Props = {
   disable: boolean;
-  newTodo: (todo: Todo) => void;
+  newTodo: (title: string) => void;
   inputValue: string;
   setInputValue: (value: string) => void;
 };
@@ -18,12 +17,7 @@ export const NewTodo = forwardRef<HTMLInputElement, Props>(
     const formHandler = (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
 
-      newTodo({
-        id: Date.now(),
-        completed: false,
-        title: inputValue,
-        userId: 0,
-      });
+      newTodo(inputValue);
     };
 
     return (
